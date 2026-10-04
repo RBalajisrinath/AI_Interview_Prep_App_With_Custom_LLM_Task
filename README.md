@@ -2,6 +2,9 @@
 
 A full-stack web application that turns a job description into a personalised interview preparation kit. Paste a job description, provide the company website, and specify how many days you have — the app crawls the company site, researches their interview process, and generates a structured prep kit.
 
+> [!IMPORTANT]
+> **Generation takes minutes, not seconds — this is normal.** A kit needs 1–3 min locally (Ollama) and 5–8 min on the hosted free tier (6–10 sequential LLM calls + site crawl). After clicking **Create Kit** you'll see a progress screen that auto-loads when ready. **Flashcards are generated last** — 0 cards while other tabs are full means it's still running; if the kit is `ready` and cards are still 0, use **Flashcards → Regenerate**. See [Timing expectations](#timing-expectations-read-this-before-reporting-a-bug).
+
 ## Tech Stack
 
 | Layer | Technology | Justification |
