@@ -1,0 +1,14 @@
+[
+  {
+    "id": "case-01",
+    "jd": "Senior Frontend Engineer\n\nWe are looking for a Senior Frontend Engineer to join our growing team. You will be responsible for building user interfaces using React and TypeScript.\n\nRequirements:\n- 5+ years of experience with React\n- Strong TypeScript skills\n- Experience with state management (Redux, Zustand)\n- Understanding of web performance optimization\n\nNice to have:\n- Experience with Next.js\n- Design system experience",
+    "company_url": "https://example.com",
+    "days": 5
+  },
+  {
+    "id": "case-02",
+    "jd": "Backend Engineer\n\nJoin our backend team to build scalable APIs.\n\nRequirements:\n- 3+ years with Node.js\n- Experience with PostgreSQL\n- Understanding of REST API design\n- Docker experience",
+    "company_url": "https://example.org",
+    "days": 3
+  }
+]
