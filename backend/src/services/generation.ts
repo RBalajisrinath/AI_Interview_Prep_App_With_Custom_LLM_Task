@@ -199,27 +199,60 @@ Generate 2-3 questions per requirement.`;
   async generateFlashcards(questions: Question[]): Promise<Flashcard[]> {
     const systemPrompt = `Create flashcards from these interview questions for quick review.
 Return JSON: { "flashcards": [{ "front": "question or concept", "back": "key points to remember", "requirement_ids": ["r1"] }] }
-Create 1-2 flashcards per question. Keep fronts concise, backs focused on key points.`;
+Create 1 flashcard per question. Keep fronts concise, backs focused on key points.`;
 
-    const questionsText = questions.slice(0, 30).map((q) =>
-      `Q: ${q.prompt}\nA: ${q.answer_outline}\nReqs: ${q.requirement_ids.join(", ")}`
-    ).join("\n\n");
+    const cards: Flashcard[] = [];
 
-    try {
-      const result = await LLMService.chatJSON<{ flashcards: any[] }>([
-        { role: "system", content: systemPrompt },
-        { role: "user", content: questionsText },
-      ], { temperature: 0.5, maxTokens: 3000 });
+    // Small batches: large outputs get truncated by small/flaky models,
+    // which is what used to produce zero flashcards.
+    const BATCH = 8;
+    for (let i = 0; i < questions.length; i += BATCH) {
+      const batch = questions.slice(i, i + BATCH);
+      const questionsText = batch
+        .map((q) => `Q: ${q.prompt}\nA: ${q.answer_outline}\nReqs: ${q.requirement_ids.join(", ")}`)
+        .join("\n\n");
 
-      return (result.flashcards || []).map((f: any) => ({
-        id: `f_${uuidv4().slice(0, 8)}`,
-        front: f.front || "",
-        back: f.back || "",
-        requirement_ids: f.requirement_ids || [],
-        origin: "generated" as const,
-      }));
-    } catch {
-      return [];
+      try {
+        const result = await LLMService.chatJSON<{ flashcards: any[] }>(
+          [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: questionsText },
+          ],
+          { temperature: 0.5, maxTokens: 2000 }
+        );
+
+        for (const f of result.flashcards || []) {
+          const card: Flashcard = {
+            id: `f_${uuidv4().slice(0, 8)}`,
+            front: f.front || "",
+            back: f.back || "",
+            requirement_ids: f.requirement_ids || [],
+            origin: "generated" as const,
+          };
+          if (!card.front || !card.back) continue;
+          cards.push(card);
+        }
+      } catch (error) {
+        console.warn(`[Generation] Flashcard batch ${i / BATCH + 1} failed, using fallback`);
+      }
     }
+
+    // Deterministic fallback: every question gets at least one card, so a
+    // failed LLM call degrades to plain Q/A cards instead of zero cards.
+    const haveFronts = new Set(cards.map((c) => c.front));
+    for (const q of questions) {
+      const already = cards.some((c) => c.requirement_ids.some((r) => q.requirement_ids.includes(r)));
+      if (!already && !haveFronts.has(q.prompt)) {
+        cards.push({
+          id: `f_${uuidv4().slice(0, 8)}`,
+          front: q.prompt,
+          back: q.answer_outline.slice(0, 500),
+          requirement_ids: [...q.requirement_ids],
+          origin: "generated" as const,
+        });
+      }
+    }
+
+    return cards;
   }
 }
