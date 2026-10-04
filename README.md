@@ -58,6 +58,13 @@ npm run dev
 
 The frontend runs on `http://localhost:3000`, the backend on `http://localhost:4000`.
 
+### Timing expectations (read this before reporting a bug)
+
+- **Kit creation takes 1–3 minutes locally** (Ollama) and **5–8 minutes on the hosted free tier**. This is normal: the pipeline makes 6–10 sequential LLM calls plus a multi-page crawl.
+- After clicking **Create Kit**, you land on a **progress screen** that polls every 5 seconds and loads the kit automatically when ready. You can leave and come back — progress is saved on the kit.
+- **Flashcards generate last**, after questions and the coverage second pass. If the Flashcards tab shows 0 while other tabs are full, the pipeline is either still running (wait for status `ready`) or that step failed and was recorded — use **Flashcards → Regenerate** to fill them.
+- On Render free tier, the **first request after idle takes ~1 minute** (the instance sleeps). Open `/api/health` first and wait for `{"status":"ok"}` before creating a kit.
+
 ### Batch Entry Point
 
 ```bash
