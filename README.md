@@ -209,23 +209,23 @@ Tests cover:
 
 ## Deployment
 
-### Frontend (Vercel)
-```bash
-cd frontend
-vercel deploy
-```
-Deploy the `frontend/` folder to Vercel. Set the environment variable `API_URL` to your backend URL.
+All free tiers. The repo includes `render.yaml`, so Render picks up the backend config automatically.
 
-### Backend (Railway/Render)
-```bash
-cd backend
-# Set environment variables in dashboard
-railway up
-```
-Deploy the `backend/` folder to Railway or Render. Set all environment variables from `.env.example`.
+### 1. MongoDB Atlas (free M0)
+Create a cluster → Database Access user → Network Access `0.0.0.0/0` → copy the connection URI. Render cannot reach your localhost Mongo, so this step is required.
 
-### MongoDB (Atlas)
-Use MongoDB Atlas free tier. Whitelist deployment IPs or use `0.0.0.0/0` for testing.
+### 2. Backend on Render (free Web Service)
+New → Web Service → select this repo. `render.yaml` fills in the rest; you only set:
+- `MONGODB_URI` = your Atlas URI
+- `CORS_ORIGIN` = your Vercel URL (after step 3)
+- `JWT_SECRET` is auto-generated.
+
+No LLM key needed: the backend tries local Ollama, and on Render (where there is none) it falls back to the hosted free tier automatically.
+
+### 3. Frontend on Vercel
+Import the same repo → set Root Directory to `frontend` → add env var `API_URL` = your Render backend URL (e.g. `https://interview-prep-api.onrender.com`). Then go back and set Render's `CORS_ORIGIN` to the Vercel URL.
+
+Note: Render free sleeps after inactivity, so the first request takes ~1 min to wake up.
 
 ## Environment Variables
 
