@@ -7,9 +7,10 @@ import { v4 as uuidv4 } from "uuid";
 
 export class KitService {
   /**
-   * Full pipeline: crawl → extract → generate → coverage check
+   * Create the kit document in "generating" state and return it immediately.
+   * Call runPipeline() afterwards (awaited or in background).
    */
-  static async createKit(userId: string, input: KitInput): Promise<Kit> {
+  static async startKit(userId: string, input: KitInput): Promise<Kit> {
     const kitId = uuidv4();
     const now = new Date().toISOString();
 
@@ -35,6 +36,17 @@ export class KitService {
       coverage: { uncovered_requirement_ids: [], passes: 0 },
       status: "generating",
     });
+
+    return kit.toObject() as Kit;
+  }
+
+  /**
+   * Full pipeline: extract → crawl → generate → coverage check.
+   * Updates the kit document to "ready" (or "failed") when done.
+   * Same code path for web (background) and batch (awaited).
+   */
+  static async runPipeline(kitId: string, input: KitInput): Promise<Kit> {
+    const now = new Date().toISOString();
 
     try {
       // Step 1: Extract requirements from JD
@@ -99,6 +111,15 @@ export class KitService {
       );
       throw error;
     }
+  }
+
+  /**
+   * Synchronous wrapper (used by the batch entry point):
+   * starts the kit and awaits the full pipeline.
+   */
+  static async createKit(userId: string, input: KitInput): Promise<Kit> {
+    const started = await this.startKit(userId, input);
+    return this.runPipeline(started.id, input);
   }
 
   static async getUserKits(userId: string): Promise<Kit[]> {

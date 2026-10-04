@@ -18,20 +18,19 @@ const createKitSchema = z.object({
 router.post("/", async (req: Request, res: Response) => {
   try {
     const input = createKitSchema.parse(req.body);
-    const kit = await KitService.createKit(req.userId!, input);
-    res.status(201).json(kit);
+    // Return 202 immediately; generation continues in the background
+    // so slow LLM/crawl steps never hit proxy timeouts.
+    const started = await KitService.startKit(req.userId!, input);
+    KitService.runPipeline(started.id, input).catch((err) =>
+      console.error("[Kit] Background pipeline failed:", err.message)
+    );
+    res.status(202).json(started);
   } catch (error: any) {
     if (error.name === "ZodError") {
       return res.status(400).json({ error: "VALIDATION_ERROR", message: error.errors[0]?.message });
     }
     console.error("[Kit] Create error:", error);
-    if (error.code === "PROVIDER_OUT_OF_SPACE") {
-      return res.status(503).json({
-        error: "LLM_UNAVAILABLE",
-        message: "The AI provider is temporarily unavailable. Please try again later.",
-      });
-    }
-    res.status(500).json({ error: "GENERATION_FAILED", message: error.message || "Failed to generate kit" });
+    res.status(500).json({ error: "GENERATION_FAILED", message: error.message || "Failed to start kit generation" });
   }
 });
 
@@ -41,6 +40,18 @@ router.get("/", async (req: Request, res: Response) => {
     res.json(kits);
   } catch (error) {
     res.status(500).json({ error: "INTERNAL_ERROR", message: "Failed to fetch kits" });
+  }
+});
+
+router.get("/:id/status", async (req: Request, res: Response) => {
+  try {
+    const kit = await KitService.getKit(req.userId!, req.params.id as string);
+    if (!kit) {
+      return res.status(404).json({ error: "NOT_FOUND", message: "Kit not found" });
+    }
+    res.json({ status: kit.status });
+  } catch (error) {
+    res.status(500).json({ error: "INTERNAL_ERROR", message: "Failed to fetch kit status" });
   }
 });
 

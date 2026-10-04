@@ -44,6 +44,28 @@ export default function KitBuilderPage() {
     if (user) fetchKit();
   }, [user, authLoading, router, fetchKit]);
 
+  // Poll while the kit is being generated (creation returns 202 immediately
+  // so slow pipelines never hit proxy timeouts).
+  const kitStatus = kit?.status;
+  useEffect(() => {
+    if (kitStatus !== "generating") return;
+    const t = setInterval(async () => {
+      try {
+        const s = await api.get<{ status: string }>(`/kits/${kitId}/status`);
+        if (s.status === "ready") {
+          clearInterval(t);
+          fetchKit();
+        } else if (s.status === "failed") {
+          clearInterval(t);
+          setKit((k) => (k ? { ...k, status: "failed" as const } : k));
+        }
+      } catch {
+        // Keep polling on transient errors
+      }
+    }, 5000);
+    return () => clearInterval(t);
+  }, [kitStatus, kitId, fetchKit]);
+
   const saveField = async (field: string, value: any) => {
     if (!kit) return;
     try {
@@ -210,6 +232,45 @@ export default function KitBuilderPage() {
   }
 
   if (!kit) return null;
+
+  if (kit.status === "generating") {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+        <div className="card max-w-md w-full text-center py-10">
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mx-auto mb-6" />
+          <h2 className="text-lg font-semibold text-gray-900 mb-2">Building your prep kit…</h2>
+          <p className="text-sm text-gray-500 mb-6">
+            Extracting requirements, crawling the company site, generating questions and building your schedule.
+          </p>
+          <ul className="text-sm text-gray-600 text-left space-y-2 mb-6">
+            <li>✓ Requirements extracted</li>
+            <li className="animate-pulse">● Researching company & generating questions…</li>
+            <li className="text-gray-400">○ Coverage check & study schedule</li>
+          </ul>
+          <p className="text-xs text-gray-400">This takes 1–3 minutes. You can leave and come back — progress is saved.</p>
+          <button onClick={() => router.push("/kits")} className="btn-secondary text-sm mt-4">
+            Back to Kits
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (kit.status === "failed") {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+        <div className="card max-w-md w-full text-center py-10">
+          <p className="text-lg font-semibold text-gray-900 mb-2">Generation failed</p>
+          <p className="text-sm text-gray-500 mb-6">
+            Something went wrong while building this kit (the AI provider or company site may be unreachable). Try creating it again.
+          </p>
+          <button onClick={() => router.push("/kits")} className="btn-primary text-sm">
+            Back to Kits
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const tabs: { id: Tab; label: string }[] = [
     { id: "brief", label: "Company Brief" },
